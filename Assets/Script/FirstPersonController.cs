@@ -21,13 +21,19 @@ public class FirstPersonController : MonoBehaviour
     public LayerMask groundLayer;
 
     private Rigidbody rb; 
+    private PlayerStats playerStats; 
 
     private bool canMove = true;
     private bool hasJumped = false;
+    
+    // เพิ่มตัวแปรเช็คสถานะ "หมดแรง"
+    private bool isExhausted = false; 
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
+        playerStats = GetComponent<PlayerStats>(); 
+
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
@@ -55,6 +61,7 @@ public class FirstPersonController : MonoBehaviour
             else
                 EnableController();
         }
+        
         if (canMove)
         {
             Look();
@@ -107,12 +114,39 @@ public class FirstPersonController : MonoBehaviour
 
     float GetSpeedModifier()
     {
+        bool isMoving = Input.GetAxis("Horizontal") != 0 || Input.GetAxis("Vertical") != 0;
+
+        // 1. ถ้ายืนเฉยๆ หรือไม่มี PlayerStats ให้คืนค่าปกติไปก่อน
+        if (playerStats == null) return 1;
+
+        // 2. เช็คอาการหมดแรง (Stamina ใกล้ 0 ให้ติดสถานะ Exhausted)
+        if (playerStats.currentStamina <= 0.1f)
+        {
+            isExhausted = true;
+        }
+        // 3. ฟื้นตัวจากอาการหมดแรง (ต้องรอให้หลอดกลับมาอย่างน้อย 20% ถึงจะวิ่งใหม่ได้)
+        else if (isExhausted && playerStats.currentStamina > 20f)
+        {
+            isExhausted = false;
+        }
+
+        // 4. สั่งงานการเคลื่อนที่
         if (Input.GetKey(KeyCode.LeftAlt))
+        {
+            playerStats.isSprinting = false;
             return walkModifier;
-        else if (Input.GetKey(KeyCode.LeftShift))
-            return sprintModifier;
+        }
+        // เปลี่ยนเงื่อนไข: จะวิ่งได้ต้อง "ไม่ติดสถานะหมดแรง (isExhausted)" เท่านั้น
+        else if (Input.GetKey(KeyCode.LeftShift) && isMoving && !isExhausted)
+        {
+            playerStats.isSprinting = true; 
+            return sprintModifier;          
+        }
         else
-            return 1;
+        {
+            playerStats.isSprinting = false; 
+            return 1; 
+        }
     }
 
     bool IsGrounded()
