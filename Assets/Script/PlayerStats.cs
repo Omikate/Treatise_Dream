@@ -1,28 +1,27 @@
 using UnityEngine;
 using UnityEngine.UI; 
-using UnityEngine.SceneManagement;
 
 public class PlayerStats : MonoBehaviour
 {
     [Header("Health Settings")]
     public float maxHealth = 100f;
     public float currentHealth;
-    public Slider healthSlider; // ลาก Health Bar (Slider) มาใส่ช่องนี้
+    public Slider healthSlider; 
 
     [Header("Stamina Settings")]
     public float maxStamina = 100f;
     public float currentStamina;
-    public float staminaDrain = 20f; // เสียเท่าไหร่ต่อวินาทีตอนวิ่ง
-    public float staminaRegen = 10f;  // ฟื้นฟูเท่าไหร่ต่อวินาที
-    public RectTransform staminaBarRect; // ลาก Stamina Bar (Image) มาใส่ช่องนี้เพื่อทำหลอดหดตรงกลาง
+    public float staminaDrain = 20f; 
+    public float staminaRegen = 10f;  
+    public RectTransform staminaBarRect; 
 
     [Header("Audio Settings")]
-    public AudioSource playerAudioSource;    // ลำโพงหลัก (เอาไว้เล่นเสียงเจ็บ)
-    public AudioClip hurtSound;              // ไฟล์เสียงร้องตอนโดนตี
+    public AudioSource playerAudioSource;    
+    public AudioClip hurtSound;              
     
     [Space]
-    public AudioSource heavyBreathingSource; // ลำโพงสำหรับเสียงหอบ (ต้องแยกต่างหาก)
-    public float staminaThreshold = 25f;     // จุดที่เริ่มหอบ (ต่ำกว่า 25)
+    public AudioSource heavyBreathingSource; 
+    public float staminaThreshold = 25f;     
 
     public bool isSprinting = false;
 
@@ -45,7 +44,6 @@ public class PlayerStats : MonoBehaviour
             currentStamina += staminaRegen * Time.deltaTime;
         }
 
-        // ป้องกันไม่ให้ค่า Stamina ติดลบหรือเกิน 100
         currentStamina = Mathf.Clamp(currentStamina, 0, maxStamina);
 
         // --- 2. ระบบเสียงหอบอัตโนมัติ ---
@@ -62,14 +60,11 @@ public class PlayerStats : MonoBehaviour
         }
 
         // --- 3. อัปเดต UI หน้าจอ ---
-        // หลอดเลือด (หาร maxHealth เพื่อให้ค่าอยู่ระหว่าง 0-1)
-        // **หมายเหตุ: ตรง Slider ของหลอดเลือด ต้องตั้งค่า Max Value เป็น 1 นะครับ**
         if (healthSlider != null) 
         {
             healthSlider.value = currentHealth / maxHealth;
         }
 
-        // หลอด Stamina (บีบสเกลแกน X เพื่อให้หดเข้าหาตรงกลาง)
         if (staminaBarRect != null) 
         {
             float staminaPercent = currentStamina / maxStamina;
@@ -79,13 +74,7 @@ public class PlayerStats : MonoBehaviour
         // --- 4. เช็คความตาย ---
         if (currentHealth <= 0) 
         {
-            // โหลด Scene ปัจจุบันใหม่ (เริ่มเกมใหม่)
-            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-        }
-
-        if (currentHealth <= 0)
-        {
-            Respawn();
+            Respawn(); // เรียกใช้งานระบบจุดเซฟ
         }
     }
 
@@ -94,32 +83,50 @@ public class PlayerStats : MonoBehaviour
     {
         currentHealth -= damage;
         
-        // เล่นเสียงร้องตอนโดนตี
         if (hurtSound != null && playerAudioSource != null)
         {
             playerAudioSource.PlayOneShot(hurtSound);
         }
     }
 
+    // ฟังก์ชันฟื้นคืนชีพที่จุดเซฟ
     public void Respawn()
     {
-        Debug.Log("คุณตายแล้ว! กำลังกลับไปจุดเซฟ...");
+        Debug.Log("คุณตายแล้ว! กำลังวาร์ปไปจุดเซฟ...");
         
-        // 1. คืนค่าเลือดให้เต็ม
+        // 1. คืนค่าเลือดและ Stamina ให้เต็ม
         currentHealth = maxHealth;
         currentStamina = maxStamina;
 
-        // 2. วาร์ปตัวละครไปที่จุดเซฟล่าสุด
-        // สำหรับ Rigidbody ต้องปิดความเร็วเดิมก่อนวาร์ป
+        // 2. ปิด Character Controller ชั่วคราว (หัวใจหลักที่ทำให้วาร์ปติด!)
+        CharacterController cc = GetComponent<CharacterController>();
+        if (cc != null)
+        {
+            cc.enabled = false; 
+        }
+
+        // 3. วาร์ปกลับไปที่จุดเซฟล่าสุด
+        if (CheckpointManager.instance != null)
+        {
+            transform.position = CheckpointManager.instance.lastCheckPointPos;
+        }
+        else
+        {
+            Debug.LogWarning("หา CheckpointManager ไม่เจอ! ทำให้กลับจุดเซฟไม่ได้");
+        }
+
+        // 4. เปิด Character Controller กลับมาใช้งานตามปกติ
+        if (cc != null)
+        {
+            cc.enabled = true; 
+        }
+
+        // 5. หยุดแรงเหวี่ยงฟิสิกส์ (กันกระเด็น)
         Rigidbody rb = GetComponent<Rigidbody>();
         if (rb != null)
         {
             rb.velocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
         }
-
-        transform.position = CheckpointManager.instance.lastCheckPointPos;
-        
-        // (Optional) สั่งให้ศัตรูเลิกไล่ หรือกลับไปจุดเดิมได้ตรงนี้
     }
 }
