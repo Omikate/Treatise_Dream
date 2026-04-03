@@ -82,6 +82,11 @@ public class PlayerStats : MonoBehaviour
             // โหลด Scene ปัจจุบันใหม่ (เริ่มเกมใหม่)
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         }
+
+        if (currentHealth <= 0)
+        {
+            Respawn();
+        }
     }
 
     // ฟังก์ชันนี้จะถูกเรียกจากตัวศัตรูเมื่อมันมาชนเรา
@@ -94,5 +99,27 @@ public class PlayerStats : MonoBehaviour
         {
             playerAudioSource.PlayOneShot(hurtSound);
         }
+    }
+
+    public void Respawn()
+    {
+        Debug.Log("คุณตายแล้ว! กำลังกลับไปจุดเซฟ...");
+        
+        // 1. คืนค่าเลือดให้เต็ม
+        currentHealth = maxHealth;
+        currentStamina = maxStamina;
+
+        // 2. วาร์ปตัวละครไปที่จุดเซฟล่าสุด
+        // สำหรับ Rigidbody ต้องปิดความเร็วเดิมก่อนวาร์ป
+        Rigidbody rb = GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.velocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+
+        transform.position = CheckpointManager.instance.lastCheckPointPos;
+        
+        // (Optional) สั่งให้ศัตรูเลิกไล่ หรือกลับไปจุดเดิมได้ตรงนี้
     }
 }
